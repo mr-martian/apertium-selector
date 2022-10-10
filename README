@@ -1,0 +1,13 @@
+```
+$ cat blah.pwf
+B 5
+L 2
+R 1
+P VB *<vblex><*>
+P NN *<n><*>
+P DT *<det><*>
+W -1:DT 0:NN 5.2
+$ src/apertium-compile-selector blah.pwf blah.bin
+$ echo '^the/the<det><def>$ ^run/run<vblex><pres>/run<n><sg>$' | src/apertium-selector blah.bin
+^the/the<det><def>$ ^run/run<n><sg>$
+```

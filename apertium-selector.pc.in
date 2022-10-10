@@ -1,0 +1,5 @@
+prefix=@prefix@
+
+Name: apertium-selector
+Description: perceptron linear classifier for Apertium
+Version: @VERSION@
