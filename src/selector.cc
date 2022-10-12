@@ -52,9 +52,7 @@ void Selector::refill_queue(InputFile& input)
   if (at_eof) return;
   if (!queue.empty() && queue.back()->isEOF()) return;
   while (queue.size() < cur_word + fs.get_lookahead()) {
-    LU* l = new LU();
-    l->read(input, fs.get_alpha());
-    fs.get_features(l);
+    LU* l = fs.read_lu(input);
     queue.push_back(l);
     if (l->isEOF()) {
       at_eof = true;

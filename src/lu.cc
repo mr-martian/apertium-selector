@@ -24,26 +24,6 @@ void Reading::read(InputFile& input, const Alphabet& alpha)
   }
 }
 
-void Reading::write(UFILE* output)
-{
-  ::write(form, output);
-}
-
-std::vector<int32_t>& Reading::get_symbols()
-{
-  return symbols;
-}
-
-sorted_vector<uint64_t>& Reading::get_feats()
-{
-  return feats;
-}
-
-void Reading::add_feat(uint64_t feat)
-{
-  feats.insert(feat);
-}
-
 LU::~LU()
 {
   if (src != nullptr) delete src;
@@ -89,26 +69,6 @@ void LU::write(UFILE* output, size_t selected,
     }
     u_fputc('$', output);
   }
-}
-
-bool LU::ambiguous()
-{
-  return trg.size() > 1;
-}
-
-bool LU::isEOF()
-{
-  return src == nullptr;
-}
-
-Reading* LU::get_src()
-{
-  return src;
-}
-
-std::vector<Reading*>& LU::get_trg()
-{
-  return trg;
 }
 
 void LU::keep_only(size_t idx)

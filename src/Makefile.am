@@ -2,7 +2,7 @@ AM_LDFLAGS=$(LIBS)
 
 bin_PROGRAMS = apertium-selector apertium-compile-selector
 
-SHARED_CC = lu.cc feature_set.cc
+SHARED_CC = lu.cc feature_set.cc pattern_matcher.cc
 
 apertium_selector_SOURCES = apertium_selector.cc selector.cc $(SHARED_CC)
 

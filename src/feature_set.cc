@@ -111,26 +111,18 @@ void FeatureSet::clear()
   lookbehind = 0;
   lookahead = 0;
   beam_size = 0;
-  patterns.clear();
   feature_names.clear();
   feature_names_inv.clear();
   feature_weights.clear();
-  trans.clear();
-  if (me != nullptr) {
-    delete me;
-    me = nullptr;
-  }
-  feature_states.clear();
+  //pm.clear(); // TODO
 }
 
 void FeatureSet::read(InputFile& input)
 {
   clear();
-  patterns.push_back(std::vector<UString>());
+  pm.add_pattern(0, ""_u);
   feature_names.push_back(""_u);
   feature_names_inv.insert(std::make_pair(u""_uv, 0));
-  alpha.includeSymbol(Transducer::ANY_CHAR_SYMBOL);
-  alpha.includeSymbol(Transducer::ANY_TAG_SYMBOL);
   while (!input.eof()) {
     skip_space(input);
     UChar32 c = input.get();
@@ -148,13 +140,14 @@ void FeatureSet::read(InputFile& input)
         auto loc = feature_names_inv.find(name);
         if (loc == feature_names_inv.end()) {
           feature_names.push_back(name);
-          feature_names_inv.insert(std::make_pair(name, patterns.size()));
-          pos = patterns.size();
-          patterns.push_back(std::vector<UString>());
+          pos = pm.get_patterns().size();
+          feature_names_inv.insert(std::make_pair(name, pos));
         } else {
           pos = loc->second;
         }
-        tokenize_line(input, patterns[pos]);
+        std::vector<UString> pat;
+        tokenize_line(input, pat);
+        for (auto& it : pat) pm.add_pattern(pos, it);
       }
       break;
     case 'W':
@@ -192,83 +185,7 @@ void FeatureSet::read(InputFile& input)
     }
     if (!input.eof() && input.peek() == '\n') input.get();
   }
-  build_transducer();
-}
-
-int32_t rule_number(Alphabet& a, uint64_t n)
-{
-  UChar buf[64];
-  u_snprintf(buf, 64, "<RULE_NUMBER:%d>", n);
-  UString sym = buf;
-  a.includeSymbol(sym);
-  return a(sym);
-}
-
-void FeatureSet::build_transducer()
-{
-  int32_t any_char = alpha(alpha(Transducer::ANY_CHAR_SYMBOL),
-                           alpha(Transducer::ANY_CHAR_SYMBOL));
-  int32_t any_tag = alpha(alpha(Transducer::ANY_TAG_SYMBOL),
-                          alpha(Transducer::ANY_TAG_SYMBOL));
-  std::map<int32_t, size_t> final_syms;
-  for (size_t i = 0; i < patterns.size(); i++) {
-    int32_t rlsym = rule_number(alpha, i);
-    rlsym = alpha(rlsym, rlsym);
-    final_syms[rlsym] = i;
-    for (auto& pat : patterns[i]) {
-      int state = 0;
-      size_t i = 0;
-      size_t end = pat.size();
-      UChar32 c;
-      bool esc = false;
-      while (i < end) {
-        U16_NEXT(pat.data(), i, end, c);
-        if (esc) {
-          int32_t sym = alpha(static_cast<int32_t>(c), static_cast<int32_t>(c));
-          state = trans.insertSingleTransduction(sym, state);
-        } else if (c == '\\') {
-          esc = true;
-        } else if (c == '*') {
-          trans.linkStates(state, state, any_char);
-        } else if (c == '<') {
-          size_t j = i;
-          while (c != '>' && j < end) {
-            U16_NEXT(pat.data(), j, end, c);
-          }
-          if (c == '>') {
-            if (i+2 == j && pat[i] == '*') {
-              trans.linkStates(state, state, any_tag);
-            } else {
-              auto tg = pat.substr(i-1, j-i+1);
-              alpha.includeSymbol(tg);
-              int32_t sym = alpha(alpha(tg), alpha(tg));
-              state = trans.insertSingleTransduction(sym, state);
-            }
-            i = j;
-          }
-        } else {
-          int32_t sym = alpha(static_cast<int32_t>(c), static_cast<int32_t>(c));
-          state = trans.insertSingleTransduction(sym, state);
-        }
-      }
-      state = trans.insertSingleTransduction(rlsym, state);
-      trans.setFinal(state);
-    }
-  }
-  trans.minimize();
-  feature_states.clear();
-  auto old_finals = trans.getFinals();
-  for (auto& state : trans.getTransitions()) {
-    for (auto& arc : state.second) {
-      if (!final_syms.count(arc.first)) continue;
-      if (!trans.isFinal(arc.second.first)) continue;
-      trans.setFinal(state.first);
-      feature_states.insert(std::make_pair(state.first, final_syms[arc.first]));
-    }
-  }
-  for (auto& it : old_finals) {
-    trans.setFinal(it.first, it.second, false);
-  }
+  pm.build_trans();
 }
 
 void FeatureSet::write(UFILE* output)
@@ -276,6 +193,7 @@ void FeatureSet::write(UFILE* output)
   u_fprintf(output, "B %d\n", beam_size);
   u_fprintf(output, "L %d\n", lookbehind);
   u_fprintf(output, "R %d\n", lookahead);
+  auto patterns = pm.get_patterns();
   for (size_t i = 0; i < patterns.size(); i++) {
     for (auto& it : patterns[i]) {
       u_fprintf(output, "P %S %S\n", feature_names[i].c_str(), it.c_str());
@@ -317,17 +235,7 @@ void FeatureSet::load(FILE* input)
   lookbehind = Compression::multibyte_read(input);
   lookahead = Compression::multibyte_read(input);
   // FST
-  alpha.read(input);
-  trans.read(input);
-  // features
-  std::map<int, int> state_list;
-  for (auto len = Compression::multibyte_read(input); len > 0; len--) {
-    int state = (int)Compression::multibyte_read(input);
-    uint64_t feat = Compression::multibyte_read(input);
-    feature_states.insert(std::make_pair(state, feat));
-    state_list.insert(std::make_pair(state, state));
-  }
-  me = new MatchExe(trans, state_list);
+  pm.read(input);
   // weights
   for (auto len1 = Compression::multibyte_read(input); len1 > 0; len1--) {
     FeatLoc f1;
@@ -355,14 +263,7 @@ void FeatureSet::compile(FILE* output)
   Compression::multibyte_write(lookbehind, output);
   Compression::multibyte_write(lookahead, output);
   // FST
-  alpha.write(output);
-  trans.write(output);
-  // features
-  Compression::multibyte_write(feature_states.size(), output);
-  for (auto& it : feature_states) {
-    Compression::multibyte_write(it.first, output);
-    Compression::multibyte_write(it.second, output);
-  }
+  pm.write(output);
   // weights
   Compression::multibyte_write(feature_weights.size(), output);
   for (auto& it : feature_weights) {
@@ -377,36 +278,19 @@ void FeatureSet::compile(FILE* output)
   }
 }
 
-void FeatureSet::get_features(Reading* reading, bool is_src)
+LU* FeatureSet::read_lu(InputFile& input)
 {
-  if (reading == nullptr) return;
-  MatchState ms;
-  ms.init(me->getInitial());
-  // TODO: optionally step by <SL>/<TL> or something
-  int32_t any_char = alpha(alpha(u"<ANY_CHAR>"_u), alpha(u"<ANY_CHAR>"_u));
-  int32_t any_tag = alpha(alpha(u"<ANY_TAG>"_u), alpha(u"<ANY_TAG>"_u));
-  for (auto& sym : reading->get_symbols()) {
-    ms.step(alpha(sym, sym), (sym < 0 ? any_tag : any_char));
+  LU* ret = new LU();
+  ret->read(input, pm.get_alpha());
+  if (ret->get_src() != nullptr) {
+    ret->get_src()->add_feat(0);
+    pm.get_features(ret->get_src(), true, ret->get_src()->get_feats());
   }
-  std::set<int> states;
-  while (true) {
-    int state = ms.classifyFinals(me->getFinals(), states);
-    if (state == -1) break;
-    states.insert(state);
+  for (auto& t : ret->get_trg()) {
+    t->add_feat(0);
+    pm.get_features(t, false, t->get_feats());
   }
-  reading->add_feat(0);
-  for (auto& it : states) {
-    auto rng = feature_states.equal_range(it);
-    for (auto it2 = rng.first; it2 != rng.second; it2++) {
-      reading->add_feat(it2->second);
-    }
-  }
-}
-
-void FeatureSet::get_features(LU* lu)
-{
-  get_features(lu->get_src(), true);
-  for (auto& it : lu->get_trg()) get_features(it, false);
+  return ret;
 }
 
 double FeatureSet::get_weight(sorted_vector<FeatLoc>& feats)
@@ -424,9 +308,4 @@ double FeatureSet::get_weight(sorted_vector<FeatLoc>& feats)
     }
   }
   return ret;
-}
-
-Alphabet& FeatureSet::get_alpha()
-{
-  return alpha;
 }

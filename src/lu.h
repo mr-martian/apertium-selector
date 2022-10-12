@@ -15,10 +15,10 @@ private:
   sorted_vector<uint64_t> feats;
 public:
   void read(InputFile& input, const Alphabet& alpha);
-  void write(UFILE* output);
-  std::vector<int32_t>& get_symbols();
-  sorted_vector<uint64_t>& get_feats();
-  void add_feat(uint64_t feat);
+  void write(UFILE* output) { ::write(form, output); }
+  std::vector<int32_t>& get_symbols() { return symbols; }
+  sorted_vector<uint64_t>& get_feats() { return feats; }
+  void add_feat(uint64_t feat) { feats.insert(feat); }
 };
 
 class LU {
@@ -33,10 +33,10 @@ public:
              bool selected_first = false, bool with_surf = true);
   // return true if multiple readings
   // and false if 1 reading or this is stream-final blank
-  bool ambiguous();
-  bool isEOF();
-  Reading* get_src();
-  std::vector<Reading*>& get_trg();
+  bool ambiguous() { return trg.size() > 1; }
+  bool isEOF() { return src == nullptr; }
+  Reading* get_src() { return src; }
+  std::vector<Reading*>& get_trg() { return trg; }
   void keep_only(size_t idx);
 };
 
