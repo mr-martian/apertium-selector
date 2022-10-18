@@ -4,7 +4,7 @@
 
 int main(int argc, char** argv)
 {
-  CLI cli("Compile apertium-selector-weights");
+  CLI cli("Compile apertium-selector weights");
   cli.add_bool_arg('h', "help", "print this help and exit");
   cli.add_file_arg("input", true);
   cli.add_file_arg("output", true);

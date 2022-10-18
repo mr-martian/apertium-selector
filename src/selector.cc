@@ -69,9 +69,7 @@ void Selector::add_feats(sorted_vector<FeatLoc>& feats, size_t loc,
   if (ridx < lu->get_trg().size()) rd = lu->get_trg()[ridx];
   else if (lu->get_trg().size() == 1) rd = lu->get_trg()[0];
   if (rd == nullptr) return;
-  for (auto& it : rd->get_feats()) {
-    feats.insert(std::make_pair((int)loc - (int)lookbehind, it));
-  }
+  rd->get_feats((int)loc - (int)lookbehind, feats);
 }
 
 void Selector::get_path_feats(sorted_vector<FeatLoc>& feats,
@@ -98,9 +96,7 @@ void Selector::process_next_word(UFILE* output)
     LU* lu = get_lu(i);
     window.push_back(lu);
     if (lu != nullptr && lu->get_src() != nullptr) {
-      for (auto& feat : lu->get_src()->get_feats()) {
-        context_feats.insert(std::make_pair((int)i - (int)lookbehind, feat));
-      }
+      lu->get_src()->get_feats((int)i - (int)lookbehind, context_feats);
     }
   }
   LU* cur = window[lookbehind];

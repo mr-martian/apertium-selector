@@ -124,17 +124,20 @@ void PatternMatcher::build_trans()
   trans.minimize();
   feature_states.clear();
   auto old_finals = trans.getFinals();
+  std::map<int, int> state_list;
   for (auto& state : trans.getTransitions()) {
     for (auto& arc : state.second) {
       if (!final_syms.count(arc.first)) continue;
       if (!trans.isFinal(arc.second.first)) continue;
       trans.setFinal(state.first);
+      state_list.insert(std::make_pair(state.first, state.first));
       feature_states.insert(std::make_pair(state.first, final_syms[arc.first]));
     }
   }
   for (auto& it : old_finals) {
     trans.setFinal(it.first, it.second, false);
   }
+  me = new MatchExe(trans, state_list);
 }
 
 void PatternMatcher::read(FILE* input)

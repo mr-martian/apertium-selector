@@ -1,20 +1,7 @@
 #ifndef __SELECTOR_RULES_H__
 #define __SELECTOR_RULES_H__
 
-#include "lu.h"
 #include "pattern_matcher.h"
-
-#include <lttoolbox/alphabet.h>
-#include <lttoolbox/match_exe.h>
-#include <lttoolbox/sorted_vector.hpp>
-#include <lttoolbox/transducer.h>
-#include <lttoolbox/ustring.h>
-
-// (pos, feat)
-// in processing and text files, position is an int ranging from
-// -lookbehind to +lookahead
-// in binary files, it is stored as non-negative by adding lookbehind
-typedef std::pair<int, uint64_t> FeatLoc;
 
 class FeatureSet {
 private:
@@ -38,10 +25,14 @@ public:
   void load(FILE* input);
   void compile(FILE* output);
   LU* read_lu(InputFile& input);
-  double get_weight(sorted_vector<FeatLoc>& feats);
+  double get_weight(FeatSet& feats);
+  double get_weight(FeatSet& feats, FeatPairSet& used_feats);
   size_t get_beam_size() { return beam_size; }
   size_t get_lookahead() { return lookahead; }
   size_t get_lookbehind() { return lookbehind; }
+  std::map<FeatPair, double> get_all_weights();
+  double get_weight(FeatPair fp);
+  void set_weight(FeatPair fp, double w);
 };
 
 #endif

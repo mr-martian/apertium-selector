@@ -24,6 +24,11 @@ void Reading::read(InputFile& input, const Alphabet& alpha)
   }
 }
 
+void Reading::get_feats(int idx, FeatSet& feat_ls)
+{
+  for (auto& it : feats) feat_ls.insert(std::make_pair(idx, it));
+}
+
 LU::~LU()
 {
   if (src != nullptr) delete src;

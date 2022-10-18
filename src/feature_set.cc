@@ -195,6 +195,7 @@ void FeatureSet::write(UFILE* output)
   u_fprintf(output, "R %d\n", lookahead);
   auto patterns = pm.get_patterns();
   for (size_t i = 0; i < patterns.size(); i++) {
+    if (feature_names[i].empty()) continue;
     for (auto& it : patterns[i]) {
       u_fprintf(output, "P %S %S\n", feature_names[i].c_str(), it.c_str());
     }
@@ -206,7 +207,7 @@ void FeatureSet::write(UFILE* output)
                   it2.first.first, feature_names[it2.first.second].c_str(),
                   it2.second);
       } else {
-        u_fprintf(output, "W %d:%S %d:%S\n",
+        u_fprintf(output, "W %d:%S %d:%S %f\n",
                   it.first.first, feature_names[it.first.second].c_str(),
                   it2.first.first, feature_names[it2.first.second].c_str(),
                   it2.second);
@@ -293,7 +294,13 @@ LU* FeatureSet::read_lu(InputFile& input)
   return ret;
 }
 
-double FeatureSet::get_weight(sorted_vector<FeatLoc>& feats)
+double FeatureSet::get_weight(FeatSet& feats)
+{
+  FeatPairSet used_feats;
+  return get_weight(feats, used_feats);
+}
+
+double FeatureSet::get_weight(FeatSet& feats, FeatPairSet& used_feats)
 {
   double ret = 0.0;
   auto vec = feats.get();
@@ -305,7 +312,46 @@ double FeatureSet::get_weight(sorted_vector<FeatLoc>& feats)
       auto loc2 = dct.find(vec[j]);
       if (loc2 == dct.end()) continue;
       ret += loc2->second;
+      used_feats.insert(std::make_pair(vec[i], vec[j]));
     }
   }
   return ret;
+}
+
+std::map<FeatPair, double> FeatureSet::get_all_weights()
+{
+  std::map<FeatPair, double> ret;
+  for (auto& a : feature_weights) {
+    for (auto& b : a.second) {
+      ret.insert(std::make_pair(std::make_pair(a.first, b.first), b.second));
+    }
+  }
+  return ret;
+}
+
+double FeatureSet::get_weight(FeatPair fp)
+{
+  FeatLoc f1, f2;
+  if (fp.first < fp.second) {
+    f1 = fp.first;
+    f2 = fp.second;
+  } else {
+    f1 = fp.second;
+    f2 = fp.first;
+  }
+  auto loc = feature_weights.find(f1);
+  if (loc != feature_weights.end()) {
+    auto loc2 = loc->second.find(f2);
+    return (loc2 == loc->second.end() ? 0.0 : loc2->second);
+  }
+  return 0.0;
+}
+
+void FeatureSet::set_weight(FeatPair fp, double w)
+{
+  if (fp.first < fp.second) {
+    feature_weights[fp.first][fp.second] = w;
+  } else {
+    feature_weights[fp.second][fp.first] = w;
+  }
 }
