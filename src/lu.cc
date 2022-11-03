@@ -1,4 +1,5 @@
 #include "lu.h"
+#include <algorithm>
 
 void Reading::read(InputFile& input, const Alphabet& alpha)
 {
@@ -84,4 +85,9 @@ void LU::keep_only(size_t idx)
   std::vector<Reading*> temp;
   if (idx < trg.size()) temp.push_back(trg[idx]);
   temp.swap(trg);
+}
+
+size_t LU::after_newline()
+{
+  return (size_t)std::count(blank.begin(), blank.end(), '\n');
 }

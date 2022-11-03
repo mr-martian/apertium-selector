@@ -1,5 +1,4 @@
 #include "train.h"
-#include <algorithm>
 
 #include <iostream>
 
@@ -20,11 +19,6 @@ void SelectorTrainer::error(const char* msg)
   exit(EXIT_FAILURE);
 }
 
-size_t count_nl(const UString& s)
-{
-  return (size_t)std::count(s.begin(), s.end(), '\n');
-}
-
 void SelectorTrainer::load_corpus(InputFile& raw, InputFile& gold)
 {
   clear_examples();
@@ -42,8 +36,8 @@ void SelectorTrainer::load_corpus(InputFile& raw, InputFile& gold)
       }
       break;
     }
-    size_t nlr = count_nl(lr->get_blank());
-    size_t nlg = count_nl(lg->get_blank());
+    size_t nlr = lr->after_newline();
+    size_t nlg = lg->after_newline();
     if (nlr != nlg) {
       error("Raw and Gold files have line breaks in different places.");
     }

@@ -52,6 +52,7 @@ public:
   Reading* get_src() { return src; }
   std::vector<Reading*>& get_trg() { return trg; }
   void keep_only(size_t idx);
+  size_t after_newline();
 };
 
 #endif

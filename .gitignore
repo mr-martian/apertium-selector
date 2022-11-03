@@ -16,3 +16,4 @@ stamp-h1
 apertium-selector
 apertium-compile-selector
 apertium-train-selector
+apertium-train-embeddings
